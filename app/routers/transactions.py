@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
@@ -6,7 +6,11 @@ from app.dependencies.auth import get_current_user
 from app.models.transaction import Transaction
 from app.models.user import User
 from app.schemas.transaction import TransactionCreate, TransactionRead
-from app.services.transaction_service import create_transaction, get_category_for_user
+from app.services.transaction_service import (
+    create_transaction,
+    get_category_for_user,
+    list_transactions,
+)
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -24,3 +28,13 @@ async def create_transaction_route(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
             )
     return await create_transaction(db, current_user.id, payload)
+
+
+@router.get("", response_model=list[TransactionRead])
+async def list_transactions_route(
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[Transaction]:
+    return await list_transactions(db, current_user.id, limit, offset)

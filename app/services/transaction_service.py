@@ -18,6 +18,19 @@ async def get_category_for_user(db: AsyncSession, user_id: int, category_id: int
     return result.scalar_one_or_none()
 
 
+async def list_transactions(
+    db: AsyncSession, user_id: int, limit: int, offset: int
+) -> list[Transaction]:
+    result = await db.execute(
+        select(Transaction)
+        .where(Transaction.user_id == user_id)
+        .order_by(Transaction.date.desc(), Transaction.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    return list(result.scalars().all())
+
+
 async def create_transaction(
     db: AsyncSession, user_id: int, data: TransactionCreate
 ) -> Transaction:

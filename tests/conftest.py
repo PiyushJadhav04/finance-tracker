@@ -44,6 +44,10 @@ async def db_session():
     session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
     async with session_factory() as session:
         yield session
+        # roll back first: if the test raised mid-transaction, the session
+        # is left "pending rollback" and the deletes below would silently
+        # no-op, leaking this test's rows into the next one
+        await session.rollback()
         for table in reversed(Base.metadata.sorted_tables):
             await session.execute(table.delete())
         await session.commit()
