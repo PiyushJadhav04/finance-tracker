@@ -31,6 +31,17 @@ async def list_transactions(
     return list(result.scalars().all())
 
 
+async def get_transaction(
+    db: AsyncSession, user_id: int, transaction_id: int
+) -> Transaction | None:
+    result = await db.execute(
+        select(Transaction).where(
+            Transaction.id == transaction_id, Transaction.user_id == user_id
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 async def create_transaction(
     db: AsyncSession, user_id: int, data: TransactionCreate
 ) -> Transaction:

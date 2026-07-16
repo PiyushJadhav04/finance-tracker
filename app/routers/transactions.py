@@ -9,6 +9,7 @@ from app.schemas.transaction import TransactionCreate, TransactionRead
 from app.services.transaction_service import (
     create_transaction,
     get_category_for_user,
+    get_transaction,
     list_transactions,
 )
 
@@ -38,3 +39,17 @@ async def list_transactions_route(
     db: AsyncSession = Depends(get_db),
 ) -> list[Transaction]:
     return await list_transactions(db, current_user.id, limit, offset)
+
+
+@router.get("/{transaction_id}", response_model=TransactionRead)
+async def get_transaction_route(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Transaction:
+    transaction = await get_transaction(db, current_user.id, transaction_id)
+    if transaction is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found"
+        )
+    return transaction

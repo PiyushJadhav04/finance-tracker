@@ -141,3 +141,50 @@ async def test_list_transactions_respects_limit_and_offset(client, auth_headers)
     )
     assert [item["date"] for item in first_page.json()] == ["2026-07-05", "2026-07-04"]
     assert [item["date"] for item in second_page.json()] == ["2026-07-03", "2026-07-02"]
+
+
+async def test_get_transaction_returns_own_transaction(client, auth_headers):
+    created = await client.post(
+        "/transactions",
+        json={"amount": "42.50", "date": "2026-07-01"},
+        headers=auth_headers,
+    )
+    transaction_id = created.json()["id"]
+
+    response = await client.get(f"/transactions/{transaction_id}", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["id"] == transaction_id
+
+
+async def test_get_transaction_requires_auth(client, auth_headers):
+    created = await client.post(
+        "/transactions",
+        json={"amount": "42.50", "date": "2026-07-01"},
+        headers=auth_headers,
+    )
+    transaction_id = created.json()["id"]
+
+    response = await client.get(f"/transactions/{transaction_id}")
+    assert response.status_code == 401
+
+
+async def test_get_transaction_404_when_not_found(client, auth_headers):
+    response = await client.get("/transactions/999999", headers=auth_headers)
+    assert response.status_code == 404
+
+
+async def test_get_transaction_404_when_belongs_to_other_user(client, auth_headers, db_session):
+    other_user = User(email="bob@example.com", password_hash="x")
+    db_session.add(other_user)
+    await db_session.commit()
+    await db_session.refresh(other_user)
+
+    other_transaction = Transaction(user_id=other_user.id, amount="999.00", date=date(2026, 7, 3))
+    db_session.add(other_transaction)
+    await db_session.commit()
+    await db_session.refresh(other_transaction)
+
+    response = await client.get(
+        f"/transactions/{other_transaction.id}", headers=auth_headers
+    )
+    assert response.status_code == 404
