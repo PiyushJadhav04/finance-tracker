@@ -188,3 +188,109 @@ async def test_get_transaction_404_when_belongs_to_other_user(client, auth_heade
         f"/transactions/{other_transaction.id}", headers=auth_headers
     )
     assert response.status_code == 404
+
+
+async def test_update_transaction_updates_only_provided_fields(client, auth_headers):
+    created = await client.post(
+        "/transactions",
+        json={"amount": "10.00", "description": "Original", "date": "2026-07-01"},
+        headers=auth_headers,
+    )
+    transaction_id = created.json()["id"]
+
+    response = await client.put(
+        f"/transactions/{transaction_id}", json={"amount": "20.00"}, headers=auth_headers
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["amount"] == "20.00"
+    assert body["description"] == "Original"
+    assert body["date"] == "2026-07-01"
+
+
+async def test_update_transaction_requires_auth(client, auth_headers):
+    created = await client.post(
+        "/transactions", json={"amount": "10.00", "date": "2026-07-01"}, headers=auth_headers
+    )
+    transaction_id = created.json()["id"]
+
+    response = await client.put(f"/transactions/{transaction_id}", json={"amount": "20.00"})
+    assert response.status_code == 401
+
+
+async def test_update_transaction_404_when_not_found(client, auth_headers):
+    response = await client.put(
+        "/transactions/999999", json={"amount": "20.00"}, headers=auth_headers
+    )
+    assert response.status_code == 404
+
+
+async def test_update_transaction_404_when_belongs_to_other_user(
+    client, auth_headers, db_session
+):
+    other_user = User(email="bob@example.com", password_hash="x")
+    db_session.add(other_user)
+    await db_session.commit()
+    await db_session.refresh(other_user)
+
+    other_transaction = Transaction(user_id=other_user.id, amount="999.00", date=date(2026, 7, 3))
+    db_session.add(other_transaction)
+    await db_session.commit()
+    await db_session.refresh(other_transaction)
+
+    response = await client.put(
+        f"/transactions/{other_transaction.id}",
+        json={"amount": "1.00"},
+        headers=auth_headers,
+    )
+    assert response.status_code == 404
+
+
+async def test_update_transaction_rejects_unknown_category(client, auth_headers):
+    created = await client.post(
+        "/transactions", json={"amount": "10.00", "date": "2026-07-01"}, headers=auth_headers
+    )
+    transaction_id = created.json()["id"]
+
+    response = await client.put(
+        f"/transactions/{transaction_id}",
+        json={"category_id": 999999},
+        headers=auth_headers,
+    )
+    assert response.status_code == 404
+
+
+async def test_update_transaction_rejects_other_users_category(client, auth_headers, db_session):
+    created = await client.post(
+        "/transactions", json={"amount": "10.00", "date": "2026-07-01"}, headers=auth_headers
+    )
+    transaction_id = created.json()["id"]
+
+    other_user = User(email="bob@example.com", password_hash="x")
+    db_session.add(other_user)
+    await db_session.commit()
+    await db_session.refresh(other_user)
+
+    private_category = Category(name="Bob's Secret", user_id=other_user.id)
+    db_session.add(private_category)
+    await db_session.commit()
+    await db_session.refresh(private_category)
+
+    response = await client.put(
+        f"/transactions/{transaction_id}",
+        json={"category_id": private_category.id},
+        headers=auth_headers,
+    )
+    assert response.status_code == 404
+
+
+async def test_update_transaction_rejects_explicit_null_amount(client, auth_headers):
+    created = await client.post(
+        "/transactions", json={"amount": "10.00", "date": "2026-07-01"}, headers=auth_headers
+    )
+    transaction_id = created.json()["id"]
+
+    response = await client.put(
+        f"/transactions/{transaction_id}", json={"amount": None}, headers=auth_headers
+    )
+    assert response.status_code == 422

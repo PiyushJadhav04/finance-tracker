@@ -5,12 +5,13 @@ from app.db import get_db
 from app.dependencies.auth import get_current_user
 from app.models.transaction import Transaction
 from app.models.user import User
-from app.schemas.transaction import TransactionCreate, TransactionRead
+from app.schemas.transaction import TransactionCreate, TransactionRead, TransactionUpdate
 from app.services.transaction_service import (
     create_transaction,
     get_category_for_user,
     get_transaction,
     list_transactions,
+    update_transaction,
 )
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
@@ -53,3 +54,26 @@ async def get_transaction_route(
             status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found"
         )
     return transaction
+
+
+@router.put("/{transaction_id}", response_model=TransactionRead)
+async def update_transaction_route(
+    transaction_id: int,
+    payload: TransactionUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Transaction:
+    transaction = await get_transaction(db, current_user.id, transaction_id)
+    if transaction is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found"
+        )
+
+    if "category_id" in payload.model_fields_set and payload.category_id is not None:
+        category = await get_category_for_user(db, current_user.id, payload.category_id)
+        if category is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
+            )
+
+    return await update_transaction(db, transaction, payload)

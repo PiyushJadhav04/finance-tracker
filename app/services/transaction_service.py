@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.category import Category
 from app.models.transaction import Transaction
-from app.schemas.transaction import TransactionCreate
+from app.schemas.transaction import TransactionCreate, TransactionUpdate
 
 
 async def get_category_for_user(db: AsyncSession, user_id: int, category_id: int) -> Category | None:
@@ -53,6 +53,18 @@ async def create_transaction(
         date=data.date,
     )
     db.add(transaction)
+    await db.commit()
+    await db.refresh(transaction)
+    return transaction
+
+
+async def update_transaction(
+    db: AsyncSession, transaction: Transaction, data: TransactionUpdate
+) -> Transaction:
+    # exclude_unset: only fields the client actually sent overwrite the
+    # existing row, so a partial PUT body doesn't wipe out untouched fields
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(transaction, field, value)
     await db.commit()
     await db.refresh(transaction)
     return transaction
