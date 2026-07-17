@@ -8,6 +8,7 @@ from app.models.user import User
 from app.schemas.transaction import TransactionCreate, TransactionRead, TransactionUpdate
 from app.services.transaction_service import (
     create_transaction,
+    delete_transaction,
     get_category_for_user,
     get_transaction,
     list_transactions,
@@ -77,3 +78,17 @@ async def update_transaction_route(
             )
 
     return await update_transaction(db, transaction, payload)
+
+
+@router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_transaction_route(
+    transaction_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    transaction = await get_transaction(db, current_user.id, transaction_id)
+    if transaction is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found"
+        )
+    await delete_transaction(db, transaction)

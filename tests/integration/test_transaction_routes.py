@@ -294,3 +294,56 @@ async def test_update_transaction_rejects_explicit_null_amount(client, auth_head
         f"/transactions/{transaction_id}", json={"amount": None}, headers=auth_headers
     )
     assert response.status_code == 422
+
+
+async def test_delete_transaction_removes_it(client, auth_headers):
+    created = await client.post(
+        "/transactions", json={"amount": "10.00", "date": "2026-07-01"}, headers=auth_headers
+    )
+    transaction_id = created.json()["id"]
+
+    delete_response = await client.delete(
+        f"/transactions/{transaction_id}", headers=auth_headers
+    )
+    assert delete_response.status_code == 204
+
+    get_response = await client.get(f"/transactions/{transaction_id}", headers=auth_headers)
+    assert get_response.status_code == 404
+
+
+async def test_delete_transaction_requires_auth(client, auth_headers):
+    created = await client.post(
+        "/transactions", json={"amount": "10.00", "date": "2026-07-01"}, headers=auth_headers
+    )
+    transaction_id = created.json()["id"]
+
+    response = await client.delete(f"/transactions/{transaction_id}")
+    assert response.status_code == 401
+
+
+async def test_delete_transaction_404_when_not_found(client, auth_headers):
+    response = await client.delete("/transactions/999999", headers=auth_headers)
+    assert response.status_code == 404
+
+
+async def test_delete_transaction_404_when_belongs_to_other_user(
+    client, auth_headers, db_session
+):
+    other_user = User(email="bob@example.com", password_hash="x")
+    db_session.add(other_user)
+    await db_session.commit()
+    await db_session.refresh(other_user)
+
+    other_transaction = Transaction(user_id=other_user.id, amount="999.00", date=date(2026, 7, 3))
+    db_session.add(other_transaction)
+    await db_session.commit()
+    await db_session.refresh(other_transaction)
+
+    response = await client.delete(
+        f"/transactions/{other_transaction.id}", headers=auth_headers
+    )
+    assert response.status_code == 404
+
+    # confirm it wasn't actually deleted despite the 404
+    result = await db_session.get(Transaction, other_transaction.id)
+    assert result is not None

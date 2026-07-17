@@ -68,3 +68,8 @@ async def update_transaction(
     await db.commit()
     await db.refresh(transaction)
     return transaction
+
+
+async def delete_transaction(db: AsyncSession, transaction: Transaction) -> None:
+    await db.delete(transaction)
+    await db.commit()
