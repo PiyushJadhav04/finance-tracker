@@ -4,6 +4,8 @@ A personal expense tracker with a FastAPI backend and a minimal React
 frontend. Built as a learning project — see `PROJECT_PLAN.md` for the phased
 build plan and `CLAUDE.md` for coding conventions.
 
+Built to get more familiar with claude code.
+
 ## Stack
 
 - **Backend**: FastAPI, SQLAlchemy (async), Alembic, PostgreSQL
@@ -96,18 +98,18 @@ against the dev database. Each test gets a clean, isolated session.
 All endpoints except `/health`, `/auth/signup`, and `/auth/login` require a
 JWT bearer token (obtained from `/auth/login`) in the `Authorization` header.
 
-| Method | Path                  | Description                                  |
-| ------ | --------------------- | --------------------------------------------- |
-| GET    | `/health`              | Liveness check                                |
-| POST   | `/auth/signup`         | Create a user                                 |
-| POST   | `/auth/login`          | Log in, returns a JWT (OAuth2 form body)      |
-| GET    | `/auth/me`             | Current authenticated user                    |
-| POST   | `/transactions`        | Create a transaction                          |
-| GET    | `/transactions`        | List your transactions (paginated)            |
-| GET    | `/transactions/{id}`   | Get one transaction                           |
-| PUT    | `/transactions/{id}`   | Partially update a transaction                |
-| DELETE | `/transactions/{id}`   | Delete a transaction                          |
-| GET    | `/summary`             | Total spend + spend by category for a month   |
+| Method | Path                 | Description                                 |
+| ------ | -------------------- | ------------------------------------------- |
+| GET    | `/health`            | Liveness check                              |
+| POST   | `/auth/signup`       | Create a user                               |
+| POST   | `/auth/login`        | Log in, returns a JWT (OAuth2 form body)    |
+| GET    | `/auth/me`           | Current authenticated user                  |
+| POST   | `/transactions`      | Create a transaction                        |
+| GET    | `/transactions`      | List your transactions (paginated)          |
+| GET    | `/transactions/{id}` | Get one transaction                         |
+| PUT    | `/transactions/{id}` | Partially update a transaction              |
+| DELETE | `/transactions/{id}` | Delete a transaction                        |
+| GET    | `/summary`           | Total spend + spend by category for a month |
 
 Every transaction/summary endpoint is scoped to the authenticated user —
 there is no way to read or modify another user's data.
